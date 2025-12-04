@@ -11,118 +11,115 @@ const checkOnboarding = require("./middleware/checkOnboarding");
 const authRoutes = require("./routes/auth");
 const appRoutes = require("./routes/app");
 
+// ---------------------------------------------
+// CONFIG
+// ---------------------------------------------
+const PORT = process.env.PORT || 4000;
+
+// Backend service base URL (Cloud Run injects real URL)
+const BASE_URL =
+  process.env.AUTH0_BASE_URL || `http://localhost:${PORT}`;
+
+// Frontend URL (local or deployed)
+const FRONTEND_URL =
+  process.env.FRONTEND_URL || "http://localhost:5173";
+
 const app = express();
 
-// --------------------------------------------------
+// ---------------------------------------------
 // JSON + CORS
-// --------------------------------------------------
+// ---------------------------------------------
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: [FRONTEND_URL],
     credentials: true
   })
 );
 
-// --------------------------------------------------
-// AUTH0 CONFIG WITH CUSTOM CALLBACK
-// --------------------------------------------------
+// ---------------------------------------------
+// AUTH0 CONFIG
+// ---------------------------------------------
 app.use(
   auth({
     authRequired: false,
     auth0Logout: true,
     secret: process.env.AUTH0_SECRET,
-    baseURL: process.env.AUTH0_BASE_URL,
+    baseURL: BASE_URL,
     clientID: process.env.AUTH0_CLIENT_ID,
     issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
 
     authorizationParams: {
-      redirect_uri: "http://localhost:4000/callback"
+      redirect_uri: `${BASE_URL}/callback`,
     },
 
     routes: {
       callback: "/callback",
-      postLogoutRedirect: "http://localhost:5173/"
-    }
+      postLogoutRedirect: `${FRONTEND_URL}/`,
+    },
   })
 );
 
-// --------------------------------------------------
-// LOGIN ROUTE - REDIRECT TO CUSTOM HANDLER AFTER LOGIN
-// --------------------------------------------------
+// ---------------------------------------------
+// LOGIN → CUSTOM HANDLER
+// ---------------------------------------------
 app.get("/auth/login", (req, res) => {
   res.oidc.login({
     returnTo: "/auth/redirect-handler",
     authorizationParams: {
-      redirect_uri: "http://localhost:4000/callback"
-    }
+      redirect_uri: `${BASE_URL}/callback`,
+    },
   });
 });
 
-// --------------------------------------------------
-// CUSTOM REDIRECT HANDLER - CHECKS EMAIL VERIFICATION
-// --------------------------------------------------
+// ---------------------------------------------
+// REDIRECT HANDLER
+// ---------------------------------------------
 app.get("/auth/redirect-handler", (req, res) => {
-  console.log("=== Redirect handler triggered ===");
-  console.log("Authenticated:", req.oidc.isAuthenticated());
-  
-  if (!req.oidc.isAuthenticated()) {
-    console.log("Not authenticated, redirecting to login-error");
-    return res.redirect("http://localhost:5173/login-error");
-  }
-
   const user = req.oidc.user;
-  console.log("User:", user);
-  console.log("Email verified:", user?.email_verified);
 
-  if (!user) {
-    console.log("No user, redirecting to login-error");
-    return res.redirect("http://localhost:5173/login-error");
+  if (!req.oidc.isAuthenticated() || !user) {
+    return res.redirect(`${FRONTEND_URL}/login-error`);
   }
 
   if (!user.email_verified) {
-    console.log("Email not verified, redirecting to verify-email");
-    return res.redirect("http://localhost:5173/verify-email");
+    return res.redirect(`${FRONTEND_URL}/verify-email`);
   }
 
-  console.log("Email verified, redirecting to onboarding");
-  return res.redirect("http://localhost:5173/onboarding");
+  return res.redirect(`${FRONTEND_URL}/onboarding`);
 });
 
-// --------------------------------------------------
-// LOGOUT ROUTE
-// --------------------------------------------------
+// ---------------------------------------------
+// LOGOUT
+// ---------------------------------------------
 app.get("/auth/logout", (req, res) => {
-  const returnTo = req.query.returnTo || "http://localhost:5173/";
+  const returnTo = req.query.returnTo || `${FRONTEND_URL}/`;
   res.oidc.logout({ returnTo });
 });
 
-// --------------------------------------------------
-// AUTH ROUTES (e.g. resend verification)
-// --------------------------------------------------
+// ---------------------------------------------
+// AUTH ROUTES
+// ---------------------------------------------
 app.use("/auth", authRoutes);
 
-// --------------------------------------------------
-// DEBUG: VIEW AUTH USER
-// --------------------------------------------------
+// Who am I (debug)
 app.get("/api/me", requiresAuth(), (req, res) => {
   res.json({
     authenticated: req.oidc.isAuthenticated(),
-    user: req.oidc.user
+    user: req.oidc.user,
   });
 });
 
-// --------------------------------------------------
-// PROTECTED API ROUTES
-// --------------------------------------------------
+// Protected routes
 app.use("/api/onboarding", requiresAuth(), onboardingRoutes);
 app.use("/api/app", requiresAuth(), checkOnboarding, appRoutes);
 
-// --------------------------------------------------
-app.get("/", (req, res) => res.send("Auth service running…"));
-// --------------------------------------------------
+// Root
+app.get("/", (req, res) => res.send("Auth service running..."));
 
-const port = process.env.PORT || 4000;
-app.listen(port, () => {
-  console.log("Server running on 4000");
+// ---------------------------------------------
+// START SERVER
+// ---------------------------------------------
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
