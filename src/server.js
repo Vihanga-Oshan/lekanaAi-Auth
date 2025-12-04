@@ -14,9 +14,13 @@ const appRoutes = require("./routes/app");
 // ---------------------------------------------
 // CONFIG
 // ---------------------------------------------
+
+// Cloud Run injects PORT=8080 automatically
 const PORT = process.env.PORT || 4000;
 
-// Backend service base URL (Cloud Run injects real URL)
+// Backend base URL
+// Local: uses .env AUTH0_BASE_URL (http://localhost:4000)
+// Cloud Run: uses env var you set in gcloud (https://service.run.app)
 const BASE_URL =
   process.env.AUTH0_BASE_URL || `http://localhost:${PORT}`;
 
@@ -33,7 +37,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: [FRONTEND_URL],
-    credentials: true
+    credentials: true,
   })
 );
 
@@ -61,7 +65,7 @@ app.use(
 );
 
 // ---------------------------------------------
-// LOGIN → CUSTOM HANDLER
+// LOGIN
 // ---------------------------------------------
 app.get("/auth/login", (req, res) => {
   res.oidc.login({
@@ -102,7 +106,7 @@ app.get("/auth/logout", (req, res) => {
 // ---------------------------------------------
 app.use("/auth", authRoutes);
 
-// Who am I (debug)
+// Debug – who am I
 app.get("/api/me", requiresAuth(), (req, res) => {
   res.json({
     authenticated: req.oidc.isAuthenticated(),
@@ -110,11 +114,13 @@ app.get("/api/me", requiresAuth(), (req, res) => {
   });
 });
 
-// Protected routes
+// ---------------------------------------------
+// PROTECTED BUSINESS ROUTES
+// ---------------------------------------------
 app.use("/api/onboarding", requiresAuth(), onboardingRoutes);
 app.use("/api/app", requiresAuth(), checkOnboarding, appRoutes);
 
-// Root
+// Root check
 app.get("/", (req, res) => res.send("Auth service running..."));
 
 // ---------------------------------------------
