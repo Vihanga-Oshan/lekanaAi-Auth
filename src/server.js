@@ -22,11 +22,11 @@ const PORT = process.env.PORT || 4000;
 // Local: uses .env AUTH0_BASE_URL (http://localhost:4000)
 // Cloud Run: uses env var you set in gcloud (https://service.run.app)
 const BASE_URL =
-  process.env.AUTH0_BASE_URL || `http://localhost:${PORT}`;
+  process.env.AUTH0_BASE_URL || `https://lekanaai-auth-533849219780.europe-west1.run.app`;
 
 // Frontend URL (local or deployed)
 const FRONTEND_URL =
-  process.env.FRONTEND_URL || "http://localhost:5173";
+  process.env.FRONTEND_URL || "https://lekanaai-auth-533849219780.europe-west1.run.app";
 
 const app = express();
 
