@@ -90,7 +90,7 @@ app.get("/auth/redirect-handler", (req, res) => {
     return res.redirect(`${FRONTEND_URL}/verify-email`);
   }
 
-  return res.redirect(`${FRONTEND_URL}/onboarding`);
+  return res.redirect(`${FRONTEND_URL}/getting-started`);
 });
 
 // ---------------------------------------------
